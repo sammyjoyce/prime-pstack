@@ -1,0 +1,26 @@
+name: Bug in a skill or the extension
+description: A skill told the agent to do something wrong on Prime Agent, or a command misbehaved.
+labels: [bug]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Skill path or command
+      placeholder: skills/poteto-mode/playbooks/babysit.md, or /setup-pstack
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The sentence the agent followed, or the command output. Quote it.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen on Prime Agent
+  - type: input
+    id: version
+    attributes:
+      label: prime-agent --version and prime-pstack version

@@ -1,13 +1,22 @@
 {
-	"name": "@sammy/prime-pstack",
+	"name": "prime-pstack",
 	"version": "0.3.0",
 	"description": "pstack for Prime Agent: rigorous agent workflows you can parallelize with confidence. poteto-mode playbooks, engineering principles, multi-model review panels, and rlm.spawn subagent briefs.",
 	"type": "module",
 	"license": "MIT",
+	"author": "Sam Joyce",
+	"contributors": [
+		"Lauren Tan (pstack, https://github.com/cursor/plugins/tree/main/pstack)",
+		"dhairyaar (pi-pstack, https://github.com/zenspc/pi-extensions)"
+	],
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/sammy/prime-pstack.git"
+		"url": "git+https://github.com/sammyjoyce/prime-pstack.git"
 	},
+	"bugs": {
+		"url": "https://github.com/sammyjoyce/prime-pstack/issues"
+	},
+	"homepage": "https://github.com/sammyjoyce/prime-pstack#readme",
 	"keywords": [
 		"pi-package",
 		"prime-agent",
@@ -18,13 +27,17 @@
 		"subagents",
 		"unslop"
 	],
+	"engines": {
+		"node": ">=22.6"
+	},
 	"files": [
 		"extensions/",
 		"!extensions/**/*.test.ts",
 		"skills/",
 		"agents/",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"NOTICE"
 	],
 	"peerDependencies": {
 		"@earendil-works/pi-coding-agent": "*"
@@ -38,7 +51,12 @@
 		]
 	},
 	"scripts": {
-		"test": "node --experimental-strip-types --test extensions/pstack/*.test.ts skills/poteto-mode/scripts/check-plan.test.mjs scripts/reground-from-pi.test.mjs",
-		"reground": "node scripts/reground-from-pi.mjs --from ../pi-extensions/packages/pi-pstack --to ."
+		"test": "npm run test:extension && npm run test:scripts",
+		"test:extension": "node --experimental-strip-types --test extensions/pstack/*.test.ts skills/poteto-mode/scripts/check-plan.test.mjs scripts/*.test.mjs",
+		"test:scripts": "cd skills/poteto-mode/scripts && bun install --frozen-lockfile && GIT_CONFIG_GLOBAL=/dev/null bun test orch watch-pr",
+		"typecheck": "cd skills/poteto-mode/scripts && bun install --frozen-lockfile && bun run typecheck",
+		"lint": "node scripts/lint-skills.mjs",
+		"sync:upstream": "node scripts/sync-upstream.mjs",
+		"check": "npm run lint && npm test"
 	}
 }

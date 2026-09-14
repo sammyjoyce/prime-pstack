@@ -1,0 +1,19 @@
+{
+  "$comment": "Pinned upstream sources. `npm run sync:upstream` replays both reground hops at these commits; `-- --latest` advances them.",
+  "cursor": {
+    "repo": "https://github.com/cursor/plugins.git",
+    "branch": "main",
+    "path": "pstack",
+    "commit": "5bf2b1544db739998121a306340631963c2ff3de",
+    "version": "0.15.2",
+    "date": "2026-09-12T20:38:59-07:00"
+  },
+  "pi": {
+    "repo": "https://github.com/zenspc/pi-extensions.git",
+    "branch": "master",
+    "path": "packages/pi-pstack",
+    "commit": "10eb5399458a3946d287edba8d6cbfcf16952658",
+    "version": "0.6.0",
+    "date": "2026-09-09T20:25:28+05:30"
+  }
+}

@@ -16,6 +16,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const OVERRIDES_DIR = join(HERE, "prime-overrides");
 
 export const SEAMS = [
+	// pi-pstack's slash-command rewrite mangles this relative link ("/arena/" -> "/skill:arena/").
+	{ id: "skill-link-fix", from: /\]\(\.\.\/\.\.\/skill:([a-z-]+)\/SKILL\.md\)/g, to: "](../../$1/SKILL.md)" },
 	{ id: "models-path", from: /(?<!Pi-era `)~\/\.pi\/agent\/pstack\/models\.json/g, to: "~/.prime/agent/pstack/models.json" },
 	{ id: "legacy-md-path", from: /~\/\.pi\/agent\/pstack-models\.md/g, to: "~/.prime/agent/pstack-models.md" },
 	{ id: "sessions-path", from: /~\/\.pi\/agent\/sessions\//g, to: "~/.prime/agent/sessions/" },

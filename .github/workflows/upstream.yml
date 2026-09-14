@@ -1,0 +1,40 @@
+name: upstream
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - id: sync
+        run: |
+          npm run sync:upstream -- --latest
+          if git diff --quiet -- skills agents upstream.lock.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.sync.outputs.changed == 'true'
+        run: npm run check
+      - if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: sync/upstream
+          title: "sync: upstream pstack"
+          commit-message: "sync: upstream pstack"
+          body: |
+            Automated `npm run sync:upstream -- --latest`. Review the skill diff, then merge.
+            The pinned commits are in `upstream.lock.json`.
+          labels: sync

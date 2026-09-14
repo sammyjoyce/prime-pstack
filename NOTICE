@@ -1,0 +1,17 @@
+prime-pstack
+Copyright (c) 2026 Sam Joyce
+
+This package is a derivative work.
+
+The skills, playbooks, principles, and bundled scripts under skills/ and the
+subagent briefs under agents/ are adapted from pstack by Lauren Tan
+(https://github.com/cursor/plugins/tree/main/pstack), MIT License,
+Copyright (c) 2026 Lauren Tan.
+
+The extension under extensions/pstack/ and the Cursor-to-Pi seam rewrites are
+adapted from @zenspc/pi-pstack by dhairyaar
+(https://github.com/zenspc/pi-extensions/tree/master/packages/pi-pstack),
+MIT License, Copyright (c) 2026 Lauren Tan (as published).
+
+Both are redistributed under the MIT License; see LICENSE. The pinned upstream
+commits this tree was synced from are recorded in upstream.lock.json.
