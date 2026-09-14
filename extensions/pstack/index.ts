@@ -7,6 +7,7 @@ import {
 	LIST_ROLES,
 	ROLE_NAMES,
 	type BudgetLabel,
+	type ModelLevels,
 	type PstackConfig,
 	type RoleName,
 	type RoleValue,
@@ -27,11 +28,15 @@ const POTETO_SKILL = "/skill:poteto-mode";
 const POTETO_PROMPT =
 	"New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.";
 const ROLE_TABLE_HEADER =
-	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model and thinking level):";
+	"pstack role table (pass `model=` and `thinking=` to `rlm.spawn` exactly as written; a role with no line inherits the parent model and thinking level):";
 
-export function systemPromptInjection(config: PstackConfig, potetoMode: boolean): string {
+export function systemPromptInjection(
+	config: PstackConfig,
+	potetoMode: boolean,
+	available: readonly ModelLevels[],
+): string {
 	const parts: string[] = [];
-	const table = formatRoleTable(config);
+	const table = formatRoleTable(config, available);
 	if (table) parts.push(`${ROLE_TABLE_HEADER}\n${table}`);
 	if (potetoMode) parts.push(POTETO_PROMPT);
 	return parts.join("\n\n");
@@ -102,6 +107,14 @@ export function modelSelectors(
 	return ["inherit-parent", "auto", ...ids];
 }
 
+function availableModels(ctx: ExtensionContext): ModelLevels[] {
+	try {
+		return ctx.modelRegistry.getAvailable() as unknown as ModelLevels[];
+	} catch {
+		return [];
+	}
+}
+
 function modelChoices(ctx: ExtensionCommandContext): string[] {
 	const scoped = (ctx as { scopedModels?: readonly ScopedLike[] }).scopedModels;
 	return modelSelectors(scoped, readEnabledModels(), ctx.modelRegistry.getAvailable());
@@ -142,12 +155,12 @@ export default function pstackExtension(pi: ExtensionAPI): void {
 		return { action: "continue" as const };
 	});
 
-	pi.on("before_agent_start", async (event) => {
+	pi.on("before_agent_start", async (event, ctx) => {
 		const config = loadConfig();
 		const base = config.skillsEnabled
 			? event.systemPrompt
 			: stripSkillsByLocationPrefix(event.systemPrompt, SKILLS_DIR).prompt;
-		const extra = systemPromptInjection(config, potetoMode);
+		const extra = systemPromptInjection(config, potetoMode, availableModels(ctx));
 		return {
 			systemPrompt: extra ? `${base}\n\n${extra}` : base,
 		};

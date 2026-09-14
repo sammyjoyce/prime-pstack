@@ -32,15 +32,15 @@ One `ipython` cell, three `rlm.spawn` children, explicit `model=` on each, full 
 
 | Lens | `model` | Prompt template |
 |---|---|---|
-| Judgment | your configured reflect-judgment model (default inherit-parent; omit `model=`) | `references/judgment-reviewer.md` |
-| Tooling | your configured reflect-tooling model (default inherit-parent; omit `model=`) | `references/tooling-reviewer.md` |
-| Divergent | your configured reflect-judgment model (default inherit-parent; omit `model=`) | `references/divergent-reviewer.md` |
+| Judgment | your configured reflect-judgment model (default `anthropic/claude-opus-5`) | `references/judgment-reviewer.md` |
+| Tooling | your configured reflect-tooling model (default `openai/gpt-6-astra`) | `references/tooling-reviewer.md` |
+| Divergent | your configured reflect-judgment model (default `anthropic/claude-opus-5`) | `references/divergent-reviewer.md` |
 
 Pass each template verbatim, substituting the transcript path or digest where marked. Reviewers return findings with `await agent_message.send(<findings>, receiver_role='parent')`.
 
 ### 3. Synthesize
 
-One `rlm.spawn` child, using your configured reflect-judgment model (default inherit-parent; omit `model=`), full kernel access (children inherit MCP connections). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
+One `rlm.spawn` child, using your configured reflect-judgment model (default `anthropic/claude-opus-5`), full kernel access (children inherit MCP connections). The synthesizer's quality check includes spot-verifying citations, which can require MCP access. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked. The synthesizer returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 

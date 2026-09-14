@@ -22,7 +22,7 @@ describe("applyBodyTransforms", () => {
 			[
 				"Use `arena runners` from `~/.prime/agent/pstack/models.json` when present.",
 				"Spawn a `comment-sicko` child with `rlm.spawn` (its brief is `agents/comment-sicko.md`). Pass the scope.",
-				"- `model=`: your configured how-explorer model (default inherit-parent; omit `model=`)",
+				"- `model=`: your configured how-explorer model (default `zai/glm-5.3`)",
 				"- read-only brief: state in the prompt that the child must not edit files or commit",
 				"Open a todo list in your reply with one entry per phase.",
 			].join("\n"),

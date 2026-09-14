@@ -60,7 +60,8 @@ export function thinkingForBudget(budget: BudgetLabel): string | undefined {
 }
 
 export function parseBudget(value: unknown): BudgetLabel {
-	return typeof value === "string" && BUDGET_LABELS.has(value) ? (value as BudgetLabel) : "inherit";
+	if (value === "inherit") return "inherit";
+	return typeof value === "string" && BUDGET_LABELS.has(value) ? (value as BudgetLabel) : "unlimited";
 }
 
 export const LIST_ROLES: ReadonlySet<RoleName> = new Set([
@@ -108,12 +109,49 @@ export function legacyMarkdownPath(env: NodeJS.ProcessEnv = process.env, home: (
 	return join(getAgentDir(env, home), "pstack-models.md");
 }
 
+/**
+ * Shipped roster. Mirrors the upstream Cursor plugin's split (a fast code
+ * model for delegates, the strongest judgment model for prose and the hardest
+ * changes, a four-member panel for reviews) with selectors that work on Prime
+ * Agent: `zai/glm-5.3` takes the code seat (grok upstream),
+ * `anthropic/claude-opus-5` the judgment seat (fable upstream),
+ * `openai/gpt-6-astra` the OpenAI seat (sol upstream), and
+ * `anthropic/claude-fable-5-1` is the panel's fourth member. A role whose
+ * model has no live credentials in a session is dropped at injection time and
+ * runs on the parent model (see `resolveRoster`).
+ */
+const CODE_MODEL = "zai/glm-5.3";
+const JUDGMENT_MODEL = "anthropic/claude-opus-5";
+const TOOLING_MODEL = "openai/gpt-6-astra";
+const PANEL: readonly string[] = [JUDGMENT_MODEL, TOOLING_MODEL, CODE_MODEL, "anthropic/claude-fable-5-1"];
+
+export const DEFAULT_ROLES: Readonly<Record<RoleName, RoleValue>> = {
+	"feature, refactoring": CODE_MODEL,
+	"bug-fix": CODE_MODEL,
+	"perf-issue": CODE_MODEL,
+	hillclimb: CODE_MODEL,
+	"judgment and prose": JUDGMENT_MODEL,
+	"hardest tasks": JUDGMENT_MODEL,
+	"how explorer": CODE_MODEL,
+	"how explainer": JUDGMENT_MODEL,
+	"why investigators": CODE_MODEL,
+	"why synthesizer": JUDGMENT_MODEL,
+	"reflect tooling": TOOLING_MODEL,
+	"reflect judgment, divergent, synthesizer": JUDGMENT_MODEL,
+	"arena runners": [...PANEL],
+	"arena cross-judge pool": [...PANEL],
+	"swarm workers": CODE_MODEL,
+	"architect runners": [...PANEL],
+	"interrogate reviewers": [...PANEL],
+};
+
 export function defaultConfig(): PstackConfig {
 	const roles: Record<string, RoleValue> = Object.create(null);
 	for (const role of ROLE_NAMES) {
-		roles[role] = "inherit-parent";
+		const value = DEFAULT_ROLES[role];
+		roles[role] = Array.isArray(value) ? [...value] : value;
 	}
-	return { version: 1, roles, skillsEnabled: true, budget: "inherit" };
+	return { version: 1, roles, skillsEnabled: true, budget: "unlimited" };
 }
 
 export function isSafeModelSelector(value: unknown): value is string {
@@ -268,18 +306,93 @@ export function modelsForRole(config: PstackConfig, role: string): string[] {
 	return list.filter((selector) => !INHERIT_SELECTORS.has(selector));
 }
 
-export function formatRoleTable(config: PstackConfig): string {
-	const lines: string[] = [];
-	const thinking = thinkingForBudget(config.budget);
-	if (thinking) {
-		lines.push(
-			`thinking budget: ${config.budget} (pass thinking="${thinking}" to rlm.spawn; omit it for a child model whose ceiling is lower)`,
-		);
+/** The subset of a registry Model the roster needs. */
+export interface ModelLevels {
+	provider: string;
+	id: string;
+	reasoning: boolean;
+	thinkingLevelMap?: Partial<Record<string, string | null | undefined>>;
+}
+
+const THINKING_LADDER = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+/** Mirrors pi-ai's getSupportedThinkingLevels: reasoning models support every
+ * level not mapped to null, except xhigh/max which need an explicit mapping. */
+export function supportedThinkingLevels(model: ModelLevels): string[] {
+	if (!model.reasoning) return [];
+	return THINKING_LADDER.filter((level) => {
+		const mapped = model.thinkingLevelMap?.[level];
+		if (mapped === null) return false;
+		if (level === "xhigh" || level === "max") return mapped !== undefined;
+		return true;
+	});
+}
+
+/** Highest supported level at or below the budget target, else the lowest
+ * supported level, else undefined (non-reasoning model: omit `thinking=`). */
+export function thinkingForModel(model: ModelLevels, target: string): string | undefined {
+	const supported = supportedThinkingLevels(model);
+	if (supported.length === 0) return undefined;
+	const targetIndex = THINKING_LADDER.indexOf(target as (typeof THINKING_LADDER)[number]);
+	for (let i = targetIndex; i >= 0; i--) {
+		if (supported.includes(THINKING_LADDER[i])) return THINKING_LADDER[i];
 	}
+	return supported[0];
+}
+
+export interface RosterEntry {
+	selector: string;
+	thinking?: string;
+}
+
+export interface ResolvedRoster {
+	budget: BudgetLabel;
+	roles: { role: RoleName; entries: RosterEntry[] }[];
+	unavailable: string[];
+}
+
+/**
+ * Resolve the configured roster against the models this session can spawn.
+ * Entries without live credentials are dropped (and listed in `unavailable`);
+ * a role with nothing left is omitted, which the skills read as inherit-parent.
+ */
+export function resolveRoster(config: PstackConfig, available: readonly ModelLevels[]): ResolvedRoster {
+	const byKey = new Map<string, ModelLevels>();
+	for (const model of available) byKey.set(`${model.provider}/${model.id}`, model);
+	const target = thinkingForBudget(config.budget);
+	const roles: ResolvedRoster["roles"] = [];
+	const unavailable = new Set<string>();
 	for (const role of ROLE_NAMES) {
-		const models = modelsForRole(config, role);
-		if (models.length === 0) continue;
-		lines.push(`${role}: ${models.join(", ")}`);
+		const entries: RosterEntry[] = [];
+		for (const selector of modelsForRole(config, role)) {
+			const model = byKey.get(selector);
+			if (!model) {
+				unavailable.add(selector);
+				continue;
+			}
+			entries.push(target ? { selector, thinking: thinkingForModel(model, target) } : { selector });
+		}
+		if (entries.length > 0) roles.push({ role, entries });
+	}
+	return { budget: config.budget, roles, unavailable: [...unavailable].sort() };
+}
+
+function formatEntry(entry: RosterEntry): string {
+	return entry.thinking ? `${entry.selector} (thinking="${entry.thinking}")` : entry.selector;
+}
+
+export function formatRoleTable(config: PstackConfig, available: readonly ModelLevels[]): string {
+	const roster = resolveRoster(config, available);
+	if (roster.roles.length === 0) return "";
+	const lines: string[] = [];
+	const target = thinkingForBudget(roster.budget);
+	lines.push(
+		target
+			? `thinking budget: ${roster.budget} (target "${target}", already clamped per model below)`
+			: "thinking budget: inherit (omit thinking=; children inherit the parent level)",
+	);
+	for (const { role, entries } of roster.roles) {
+		lines.push(`${role}: ${entries.map(formatEntry).join(", ")}`);
 	}
 	return lines.join("\n");
 }

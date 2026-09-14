@@ -20,7 +20,7 @@ When in doubt, take the simple path.
 
 Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Spawn all explorers in one `ipython` cell (one `rlm.spawn` per explorer, then end the turn):
 
-- `model=`: your configured how-explorer model (default inherit-parent; omit `model=`)
+- `model=`: your configured how-explorer model (default `zai/glm-5.3`)
 - read-only brief: state in the prompt that the child must not edit files or commit
 
 Each explorer gets the prompt in `references/explorer-prompt.md` with its angle filled in. Then go to Step 3.
@@ -29,7 +29,7 @@ Each explorer gets the prompt in `references/explorer-prompt.md` with its angle 
 
 Spawn one subagent that explores and explains in one pass:
 
-- `model=`: your configured how-explainer model (default inherit-parent; omit `model=`)
+- `model=`: your configured how-explainer model (default `anthropic/claude-opus-5`)
 - read-only brief: state in the prompt that the child must not edit files or commit
 
 Build its prompt from `references/explainer-prompt.md` without the explorer-findings section. Go to Step 4.
@@ -38,7 +38,7 @@ Build its prompt from `references/explainer-prompt.md` without the explorer-find
 
 Once all explorers have returned, spawn one subagent to synthesize their findings into one explanation:
 
-- `model=`: your configured how-explainer model (default inherit-parent; omit `model=`)
+- `model=`: your configured how-explainer model (default `anthropic/claude-opus-5`)
 - read-only brief: state in the prompt that the child must not edit files or commit
 
 Build its prompt from `references/explainer-prompt.md` with every explorer's findings filled in.

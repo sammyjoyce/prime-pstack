@@ -1,5 +1,11 @@
 # prime-pstack
 
+## 0.3.0
+
+- Shipped model roster (was inherit-parent everywhere): `zai/glm-5.3` for code delegates, `anthropic/claude-opus-5` for judgment and prose, `openai/gpt-6-astra` for tooling review, and an opus 5 / astra / glm 5.3 / fable 5.1 panel for arena, architect, and interrogate. Budget defaults to `unlimited`.
+- The injected role table is now resolved per session: roster models without live credentials are dropped (role falls back to the parent model), and every entry carries a `thinking=` level clamped to that model's supported ceiling via the same rule pi-ai uses.
+- Skill text names the roster defaults in the same places upstream names its Cursor slugs.
+
 ## 0.2.0
 
 - Sync upstream Cursor pstack 0.15.2 (the "every claim carries its evidence or its label" reply rule; gender-neutral operator wording in the autopilot and multi-phase playbooks).

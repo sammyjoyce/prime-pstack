@@ -2,46 +2,46 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defaultConfig, parseConfig } from "./config.ts";
 import { lastPotetoEnabled, modelSelectors, systemPromptInjection } from "./index.ts";
+import { ROLE_NAMES, type ModelLevels } from "./config.ts";
 
 const POTETO_ONE_LINER =
 	"New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.";
 const TABLE_HEADER =
-	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model and thinking level):";
+	"pstack role table (pass `model=` and `thinking=` to `rlm.spawn` exactly as written; a role with no line inherits the parent model and thinking level):";
 
+const LIVE: ModelLevels[] = [{ provider: "anthropic", id: "claude-opus-4-6", reasoning: true, thinkingLevelMap: { xhigh: "x", max: "y" } }];
+const INHERIT_ROLES = Object.fromEntries(ROLE_NAMES.map((role) => [role, "inherit-parent"]));
+const INHERIT_CONFIG = parseConfig({ version: 1, roles: INHERIT_ROLES, budget: "inherit" });
 const SLUG_CONFIG = parseConfig({
 	version: 1,
-	roles: { "bug-fix": "anthropic/claude-opus-4-6" },
+	roles: { ...INHERIT_ROLES, "bug-fix": "anthropic/claude-opus-4-6" },
+	budget: "inherit",
 });
+const SLUG_LINES = `${TABLE_HEADER}\nthinking budget: inherit (omit thinking=; children inherit the parent level)\nbug-fix: anthropic/claude-opus-4-6`;
 
 describe("systemPromptInjection", () => {
-	it("injects only the Poteto Mode one-liner when the mode is on", () => {
-		assert.equal(systemPromptInjection(defaultConfig(), true), POTETO_ONE_LINER);
+	it("injects only the Poteto Mode one-liner when the mode is on and every role inherits", () => {
+		assert.equal(systemPromptInjection(INHERIT_CONFIG, true, LIVE), POTETO_ONE_LINER);
+		assert.equal(systemPromptInjection(defaultConfig(), true, []), POTETO_ONE_LINER, "no live models: no table");
 	});
 
 	it("injects no Poteto Mode text when the mode is off", () => {
-		assert.equal(systemPromptInjection(defaultConfig(), false), "");
-		assert.equal(
-			systemPromptInjection(SLUG_CONFIG, false),
-			`${TABLE_HEADER}\nbug-fix: anthropic/claude-opus-4-6`,
-		);
+		assert.equal(systemPromptInjection(INHERIT_CONFIG, false, LIVE), "");
+		assert.equal(systemPromptInjection(SLUG_CONFIG, false, LIVE), SLUG_LINES);
 	});
 
 	it("still injects a configured role slug with Poteto Mode on", () => {
-		assert.equal(
-			systemPromptInjection(SLUG_CONFIG, true),
-			`${TABLE_HEADER}\nbug-fix: anthropic/claude-opus-4-6\n\n${POTETO_ONE_LINER}`,
-		);
+		assert.equal(systemPromptInjection(SLUG_CONFIG, true, LIVE), `${SLUG_LINES}\n\n${POTETO_ONE_LINER}`);
 	});
 });
 
 describe("systemPromptInjection budget line", () => {
-	it("injects the thinking budget line only for a real budget", () => {
-		const large = parseConfig({ version: 1, roles: {}, budget: "large" });
+	it("clamps the budget per model in the injected table", () => {
+		const large = parseConfig({ version: 1, roles: { ...INHERIT_ROLES, "bug-fix": "anthropic/claude-opus-4-6" }, budget: "large" });
 		assert.equal(
-			systemPromptInjection(large, false),
-			`${TABLE_HEADER}\nthinking budget: large (pass thinking="xhigh" to rlm.spawn; omit it for a child model whose ceiling is lower)`,
+			systemPromptInjection(large, false, LIVE),
+			`${TABLE_HEADER}\nthinking budget: large (target "xhigh", already clamped per model below)\nbug-fix: anthropic/claude-opus-4-6 (thinking="xhigh")`,
 		);
-		assert.equal(systemPromptInjection(parseConfig({ version: 1, roles: {}, budget: "inherit" }), false), "");
 	});
 });
 

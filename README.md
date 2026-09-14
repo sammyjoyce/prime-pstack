@@ -22,7 +22,7 @@ No other package is required. Subagents are native `rlm.spawn` children, so `pi-
 
 ## Get started
 
-1. Run `/setup-pstack` once to pick a reasoning budget and which models each role uses (optional; every role inherits the parent session model and thinking level otherwise). The picker lists your `enabledModels` (the same set `/scoped-models` shows) when configured, otherwise every available model.
+1. Run `/setup-pstack` once to pick a reasoning budget and which models each role uses (optional). Out of the box the mode splits work by model strength: code delegates (feature, refactoring, bug fix, perf, hillclimb, swarm workers, explorers, investigators) go to `zai/glm-5.3`, prose, judgment, and the hardest changes go to `anthropic/claude-opus-5`, tooling review goes to `openai/gpt-6-astra`, and the review panels are opus 5 / astra / glm 5.3 / fable 5.1. The picker lists your `enabledModels` (the same set `/scoped-models` shows) when configured, otherwise every available model.
 2. Use `/poteto-mode` for sticky Poteto Mode. It stays on until `/poteto-mode off`. `/skill:poteto-mode` also enables it.
 3. Run `/pstack off` to hide even the four Discoverable skills (`how`, `why`, `unslop`, `typescript-best-practices`) from the Skill catalog.
    Off persists in `~/.prime/agent/pstack/models.json`.
@@ -44,9 +44,11 @@ That is it. The other skills are Hidden; the mode skill uses them as needed. New
 
 ## Model roles and budget
 
-Per-role model choices and the reasoning budget live in `~/.prime/agent/pstack/models.json` (or `$PRIME_AGENT_CODING_AGENT_DIR/pstack/models.json`). Run `/setup-pstack` to write it. The extension injects the role table into the system prompt only when a role has a real `provider/id` selector or the budget is not `inherit`. Default inherit-all injects nothing. `inherit-parent` or `auto` runs on the parent session model (omit `model=` in `rlm.spawn`).
+Per-role model choices and the reasoning budget live in `~/.prime/agent/pstack/models.json` (or `$PRIME_AGENT_CODING_AGENT_DIR/pstack/models.json`). Run `/setup-pstack` to write it; a missing file or a missing role means the shipped roster above. `inherit-parent` or `auto` runs a role on the parent session model (omit `model=` in `rlm.spawn`).
 
-The budget maps to the `thinking=` argument of `rlm.spawn`: `unlimited` is `max`, `large` is `xhigh`, `medium` is `high`, `small` is `medium`. Upstream bakes effort into model slugs; Prime Agent keeps model and thinking level separate, so the budget is one line and does not rewrite selectors.
+On every turn the extension resolves the roster against the models the session can actually spawn (live credentials) and injects one table line per resolved role, each entry carrying its `thinking=` level clamped to that model's ceiling. A roster model with no credentials on this machine is dropped for the session and its role runs on the parent model, so the shipped roster is safe with only some providers configured. When every role resolves to nothing, no table is injected.
+
+The budget (`unlimited` default, `large`, `medium`, `small`, `inherit`) sets the `thinking=` target: `max`, `xhigh`, `high`, `medium`, or none. Upstream bakes effort into model slugs; Prime Agent keeps model and thinking level separate, so the budget is one field and the table does the clamping (`xai/grok-4.6` tops out at `xhigh`, the `opencode-go` mirrors at `high`).
 
 ## How delegation maps onto Prime Agent
 

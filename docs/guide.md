@@ -8,9 +8,11 @@ pstack works best when you stop micromanaging the agent. You describe what you w
 prime-agent package install /absolute/path/to/prime-pstack
 ```
 
-Start a new session, then run `/setup-pstack`. It asks for a reasoning budget (`inherit`, `unlimited`, `large`, `medium`, `small`) and then a model per role. Roles left at `inherit-parent` run on your session model. The picker lists your `enabledModels` (`/scoped-models`) when you have set that, otherwise every model you have credentials for.
+Start a new session. The shipped roster already works: code delegates on `zai/glm-5.3`, judgment and prose on `anthropic/claude-opus-5`, tooling review on `openai/gpt-6-astra`, and the review panels on opus 5 / astra / glm 5.3 / fable 5.1, all at the `unlimited` budget. A roster model you have no credentials for is dropped for the session and that role runs on your parent model.
 
-The file it writes is `~/.prime/agent/pstack/models.json`. Delete a role line, or run `/setup-pstack` again, to change it. A configured role or budget shows up in every new turn's system prompt as a small role table. Nothing is injected when everything inherits.
+Run `/setup-pstack` to change any of it. It asks for a reasoning budget (`unlimited`, `large`, `medium`, `small`, `inherit`) and then a model per role. The picker lists your `enabledModels` (`/scoped-models`) when you have set that, otherwise every model you have credentials for. The file it writes is `~/.prime/agent/pstack/models.json`; delete a role line to fall back to the shipped default.
+
+Every turn's system prompt carries the resolved table, one line per role, each entry with its `thinking=` level already clamped to that model's ceiling. Copy `model=` and `thinking=` from it as written.
 
 ## Route work through `/poteto-mode`
 
@@ -64,6 +66,6 @@ Root sessions: `~/.prime/agent/sessions/<uuid>.jsonl`. The first line is a heade
 ## Pitfalls specific to Prime Agent
 
 - `rlm.spawn` returns at admission. Waiting on it for an answer blocks forever. End the turn.
-- A child model with a lower thinking ceiling than the configured budget fails to spawn. Drop `thinking=` for that child.
+- A `thinking=` level the child model does not support fails the spawn. The injected table is already clamped per model; when you pick a model yourself, check `await rlm.find_models(...)` and use a level it accepts.
 - Provider quota errors surface as a child that exits without a reply (`request_failed` in its transcript, `provider stream failure` in `~/.prime/agent/logs/agent.jsonl`). Re-spawn on another model rather than retrying the same one.
 - `bash()` runs one process per call. `os.chdir` and `os.environ` are what persist.

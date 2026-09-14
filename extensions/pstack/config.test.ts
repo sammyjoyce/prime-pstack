@@ -11,6 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
+	DEFAULT_ROLES,
+	type ModelLevels,
 	ROLE_NAMES,
 	configPath,
 	defaultConfig,
@@ -24,8 +26,11 @@ import {
 	parseConfig,
 	parseLegacyMarkdown,
 	readEnabledModels,
+	resolveRoster,
 	saveConfig,
+	supportedThinkingLevels,
 	thinkingForBudget,
+	thinkingForModel,
 } from "./config.ts";
 
 const MAX_CONFIG_BYTES = 100_000;
@@ -35,12 +40,25 @@ function tempDir(prefix: string): string {
 }
 
 describe("defaultConfig", () => {
-	it("sets every role to inherit-parent", () => {
+	it("ships the roster: glm-5.3 for code, opus 5 for judgment, astra for tooling, a four-member panel", () => {
 		const cfg = defaultConfig();
 		assert.equal(cfg.version, 1);
 		assert.equal(Object.keys(cfg.roles).length, ROLE_NAMES.length);
+		assert.equal(cfg.roles["bug-fix"], "zai/glm-5.3");
+		assert.equal(cfg.roles["swarm workers"], "zai/glm-5.3");
+		assert.equal(cfg.roles["judgment and prose"], "anthropic/claude-opus-5");
+		assert.equal(cfg.roles["hardest tasks"], "anthropic/claude-opus-5");
+		assert.equal(cfg.roles["reflect tooling"], "openai/gpt-6-astra");
+		assert.deepEqual(cfg.roles["interrogate reviewers"], [
+			"anthropic/claude-opus-5",
+			"openai/gpt-6-astra",
+			"zai/glm-5.3",
+			"anthropic/claude-fable-5-1",
+		]);
+		assert.deepEqual(cfg.roles["arena runners"], cfg.roles["interrogate reviewers"]);
+		assert.notEqual(cfg.roles["arena runners"], cfg.roles["interrogate reviewers"], "panel arrays are not shared");
 		for (const role of ROLE_NAMES) {
-			assert.equal(cfg.roles[role], "inherit-parent");
+			assert.equal(DEFAULT_ROLES[role] !== undefined, true, `${role} has a default`);
 		}
 	});
 
@@ -48,8 +66,8 @@ describe("defaultConfig", () => {
 		assert.equal(defaultConfig().skillsEnabled, true);
 	});
 
-	it("inherits the parent thinking level by default", () => {
-		assert.equal(defaultConfig().budget, "inherit");
+	it("defaults the budget to unlimited, and inherit injects no thinking level", () => {
+		assert.equal(defaultConfig().budget, "unlimited");
 		assert.equal(thinkingForBudget("inherit"), undefined);
 	});
 });
@@ -67,7 +85,7 @@ describe("parseConfig", () => {
 		});
 		assert.equal(parsed.roles["bug-fix"], "anthropic/claude-opus-4-6");
 		assert.equal(parsed.roles["not-a-role"], undefined);
-		assert.equal(parsed.roles["how explorer"], "inherit-parent");
+		assert.equal(parsed.roles["how explorer"], "zai/glm-5.3", "a bad selector keeps the shipped default");
 		assert.deepEqual(parsed.roles["arena runners"], ["anthropic/ok"]);
 
 		const wrongVersion = parseConfig({
@@ -79,8 +97,9 @@ describe("parseConfig", () => {
 
 	it("keeps a known budget and drops an unknown one", () => {
 		assert.equal(parseConfig({ version: 1, roles: {}, budget: "large" }).budget, "large");
-		assert.equal(parseConfig({ version: 1, roles: {}, budget: "huge" }).budget, "inherit");
-		assert.equal(parseConfig({ version: 1, roles: {}, budget: 3 }).budget, "inherit");
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: "inherit" }).budget, "inherit");
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: "huge" }).budget, "unlimited");
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: 3 }).budget, "unlimited");
 		assert.equal(thinkingForBudget("unlimited"), "max");
 		assert.equal(thinkingForBudget("large"), "xhigh");
 		assert.equal(thinkingForBudget("medium"), "high");
@@ -241,7 +260,7 @@ bug-fix: openai/gpt-5.6
 		]);
 		assert.equal(parsed.roles["bug-fix"], "openai/gpt-5.6");
 		assert.equal(parsed.roles["unknown role"], undefined);
-		assert.equal(parsed.roles["hillclimb"], "inherit-parent");
+		assert.equal(parsed.roles["hillclimb"], "zai/glm-5.3");
 	});
 });
 
@@ -262,30 +281,96 @@ describe("migrateLegacyMarkdownIfNeeded", () => {
 			const again = migrateLegacyMarkdownIfNeeded(jsonPath, mdPath);
 			assert.equal(again, undefined);
 			assert.equal(loadConfig(jsonPath).roles["bug-fix"], "anthropic/claude-opus-4-6");
-			assert.equal(loadConfig(jsonPath).roles.hillclimb, "inherit-parent");
+			assert.equal(loadConfig(jsonPath).roles.hillclimb, "zai/glm-5.3");
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
 	});
 });
 
-describe("formatRoleTable", () => {
-	it("injects nothing when every role inherits", () => {
-		assert.equal(formatRoleTable(defaultConfig()), "");
-		assert.equal(formatRoleTable(parseConfig({ version: 1, roles: { "bug-fix": "auto" } })), "");
+const LEVELS_MAX = { minimal: "m", low: "l", medium: "md", high: "h", xhigh: "xh", max: "mx" };
+const LEVELS_XHIGH = { minimal: "m", low: "l", medium: "md", high: "h", xhigh: "xh", max: null };
+const LEVELS_HIGH = { minimal: "m", low: "l", medium: "md", high: "h" };
+const LIVE: ModelLevels[] = [
+	{ provider: "anthropic", id: "claude-fable-5-1", reasoning: true, thinkingLevelMap: LEVELS_MAX },
+	{ provider: "anthropic", id: "claude-opus-5", reasoning: true, thinkingLevelMap: LEVELS_MAX },
+	{ provider: "openai", id: "gpt-6-astra", reasoning: true, thinkingLevelMap: LEVELS_MAX },
+	{ provider: "xai", id: "grok-4.6", reasoning: true, thinkingLevelMap: LEVELS_XHIGH },
+	{ provider: "zai", id: "glm-5.3", reasoning: true, thinkingLevelMap: LEVELS_MAX },
+	{ provider: "opencode-go", id: "grok-4.6", reasoning: true, thinkingLevelMap: LEVELS_HIGH },
+	{ provider: "openai", id: "gpt-4.1", reasoning: false },
+];
+
+const live = (key: string): ModelLevels => {
+	const found = LIVE.find((m) => `${m.provider}/${m.id}` === key);
+	assert.ok(found, `fixture ${key}`);
+	return found;
+};
+
+describe("supportedThinkingLevels / thinkingForModel", () => {
+	it("mirrors pi-ai: xhigh and max need an explicit mapping, null hides a level", () => {
+		assert.deepEqual(supportedThinkingLevels(live("anthropic/claude-fable-5-1")), ["minimal", "low", "medium", "high", "xhigh", "max"]);
+		assert.deepEqual(supportedThinkingLevels(live("xai/grok-4.6")), ["minimal", "low", "medium", "high", "xhigh"]);
+		assert.deepEqual(supportedThinkingLevels(live("opencode-go/grok-4.6")), ["minimal", "low", "medium", "high"]);
+		assert.deepEqual(supportedThinkingLevels(live("openai/gpt-4.1")), []);
 	});
 
-	it("lists only non-default roles", () => {
+	it("clamps the budget target down to the model ceiling", () => {
+		assert.equal(thinkingForModel(live("anthropic/claude-fable-5-1"), "max"), "max");
+		assert.equal(thinkingForModel(live("xai/grok-4.6"), "max"), "xhigh");
+		assert.equal(thinkingForModel(live("opencode-go/grok-4.6"), "max"), "high");
+		assert.equal(thinkingForModel(live("opencode-go/grok-4.6"), "medium"), "medium");
+		assert.equal(thinkingForModel(live("openai/gpt-4.1"), "max"), undefined);
+	});
+});
+
+describe("resolveRoster / formatRoleTable", () => {
+	it("drops selectors without live credentials and reports them", () => {
 		const cfg = parseConfig({
 			version: 1,
-			roles: {
-				"bug-fix": "anthropic/claude-opus-4-6",
-				"arena runners": ["anthropic/a", "openai/b"],
-			},
+			roles: { "bug-fix": "deepseek/deepseek-flash", "interrogate reviewers": ["xai/grok-4.6", "zai/glm-5.2"] },
 		});
+		const roster = resolveRoster(cfg, LIVE);
+		assert.deepEqual(roster.unavailable, ["deepseek/deepseek-flash", "zai/glm-5.2"]);
+		assert.equal(roster.roles.some((r) => r.role === "bug-fix"), false);
+		const panel = roster.roles.find((r) => r.role === "interrogate reviewers");
+		assert.deepEqual(panel?.entries, [{ selector: "xai/grok-4.6", thinking: "xhigh" }]);
+	});
+
+	it("injects nothing when every role inherits or nothing is available", () => {
+		const inherit = parseConfig({ version: 1, roles: {}, budget: "inherit" });
+		for (const role of ROLE_NAMES) inherit.roles[role] = "inherit-parent";
+		assert.equal(formatRoleTable(inherit, LIVE), "");
+		assert.equal(formatRoleTable(defaultConfig(), []), "");
+	});
+
+	it("writes one line per resolved role with the clamped thinking level", () => {
+		const cfg = parseConfig({
+			version: 1,
+			budget: "large",
+			roles: { "bug-fix": "opencode-go/grok-4.6", "arena runners": ["anthropic/claude-fable-5-1", "openai/gpt-4.1"] },
+		});
+		for (const role of ROLE_NAMES) {
+			if (role !== "bug-fix" && role !== "arena runners") cfg.roles[role] = "inherit-parent";
+		}
 		assert.equal(
-			formatRoleTable(cfg),
-			"bug-fix: anthropic/claude-opus-4-6\narena runners: anthropic/a, openai/b",
+			formatRoleTable(cfg, LIVE),
+			[
+				'thinking budget: large (target "xhigh", already clamped per model below)',
+				'bug-fix: opencode-go/grok-4.6 (thinking="high")',
+				'arena runners: anthropic/claude-fable-5-1 (thinking="xhigh"), openai/gpt-4.1',
+			].join("\n"),
+		);
+	});
+
+	it("resolves the shipped roster fully when all four families are live", () => {
+		const table = formatRoleTable(defaultConfig(), LIVE);
+		assert.match(table, /^thinking budget: unlimited \(target "max"/);
+		assert.match(table, /\nbug-fix: zai\/glm-5\.3 \(thinking="max"\)\n/);
+		assert.match(table, /\nreflect tooling: openai\/gpt-6-astra \(thinking="max"\)\n/);
+		assert.match(
+			table,
+			/\ninterrogate reviewers: anthropic\/claude-opus-5 \(thinking="max"\), openai\/gpt-6-astra \(thinking="max"\), zai\/glm-5\.3 \(thinking="max"\), anthropic\/claude-fable-5-1 \(thinking="max"\)$/,
 		);
 	});
 });
@@ -303,7 +388,7 @@ describe("modelsForRole", () => {
 		assert.deepEqual(modelsForRole(cfg, "bug-fix"), []);
 		assert.deepEqual(modelsForRole(cfg, "how explorer"), []);
 		assert.deepEqual(modelsForRole(cfg, "arena runners"), ["anthropic/a", "openai/b"]);
-		assert.deepEqual(modelsForRole(cfg, "hillclimb"), []);
+		assert.deepEqual(modelsForRole(cfg, "hillclimb"), ["zai/glm-5.3"], "unset role keeps the shipped default");
 	});
 });
 

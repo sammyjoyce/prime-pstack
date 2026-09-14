@@ -77,7 +77,7 @@ Aim for a complete **coverage map**, not a minimal one. Document the null, don't
 Launch all matching investigators in one `ipython` cell (one `rlm.spawn` each, then end the turn) so they run concurrently. Don't ask one agent to cover multiple MCPs.
 
 Subagent config (each):
-- `model=`: your configured why-investigators model (default inherit-parent; omit `model=`)
+- `model=`: your configured why-investigators model (default `zai/glm-5.3`)
 - Children inherit the parent's MCP connections (`mcp.list_tools(...)` / `mcp.call_tool(...)`). Investigators still shouldn't write anything; say so in the brief.
 
 Each investigator gets:
@@ -120,7 +120,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 
 Spawn one synthesizer subagent:
 
-- `model=`: your configured why-synthesizer model (default inherit-parent; omit `model=`)
+- `model=`: your configured why-synthesizer model (default `anthropic/claude-opus-5`)
 - The synthesizer's quality check spot-verifies citations, which can require MCP access. Children inherit the parent's MCP connections.
 
 The synthesizer gets:

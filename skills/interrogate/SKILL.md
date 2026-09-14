@@ -33,14 +33,14 @@ Write one clear paragraph. If you're unsure about the intent, ask the user befor
 
 ## Step 3, Spawn Reviewers
 
-Launch all reviewers in one `ipython` cell, one `rlm.spawn` per reviewer, then end the turn. Use the `interrogate reviewers` list from `~/.prime/agent/pstack/models.json` when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults.
+Launch all reviewers in one `ipython` cell, one `rlm.spawn` per reviewer, then end the turn. Use the `interrogate reviewers` list from the injected pstack role table when present, one reviewer per entry, extending or shrinking the Reviewer A/B/C/D labels below to the configured entry count. Otherwise use the table defaults.
 
 | Subagent | Default model |
 |----------|---------------|
-| Reviewer A | inherit-parent |
-| Reviewer B | inherit-parent |
-| Reviewer C | inherit-parent |
-| Reviewer D | inherit-parent |
+| Reviewer A | `anthropic/claude-opus-5` |
+| Reviewer B | `openai/gpt-6-astra` |
+| Reviewer C | `zai/glm-5.3` |
+| Reviewer D | `anthropic/claude-fable-5-1` |
 
 For each reviewer:
 - `model=`: the configured `interrogate reviewers` entry, or the table default with no configured line
