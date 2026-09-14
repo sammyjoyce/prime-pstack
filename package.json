@@ -1,0 +1,44 @@
+{
+	"name": "@sammy/prime-pstack",
+	"version": "0.1.0",
+	"description": "pstack for Prime Agent: rigorous agent workflows you can parallelize with confidence. poteto-mode playbooks, engineering principles, multi-model review panels, and rlm.spawn subagent briefs.",
+	"type": "module",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/sammy/prime-pstack.git"
+	},
+	"keywords": [
+		"pi-package",
+		"prime-agent",
+		"skills",
+		"workflow",
+		"principles",
+		"poteto-mode",
+		"subagents",
+		"unslop"
+	],
+	"files": [
+		"extensions/",
+		"!extensions/**/*.test.ts",
+		"skills/",
+		"agents/",
+		"README.md",
+		"LICENSE"
+	],
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*"
+	},
+	"pi": {
+		"extensions": [
+			"./extensions/pstack/index.ts"
+		],
+		"skills": [
+			"./skills"
+		]
+	},
+	"scripts": {
+		"test": "node --experimental-strip-types --test extensions/pstack/*.test.ts skills/poteto-mode/scripts/check-plan.test.mjs scripts/reground-from-pi.test.mjs",
+		"reground": "node scripts/reground-from-pi.mjs --from ../pi-extensions/packages/pi-pstack --to ."
+	}
+}
