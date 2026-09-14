@@ -29,6 +29,16 @@ describe("applyBodyTransforms", () => {
 		);
 	});
 
+	it("points a poteto-agent child at the injected skills dir line, not at <available_skills>", () => {
+		const out = applyBodyTransforms(
+			"Read the `poteto-mode` skill's `SKILL.md` in full (use `fffind` or `ls` under the pi-pstack package's `skills/poteto-mode/` if it is not already in context) before doing any work.",
+		);
+		assert.equal(
+			out,
+			"Read the `poteto-mode` skill's `SKILL.md` in full (hidden skill; read it at `<dir>/poteto-mode/SKILL.md`, where `<dir>` is the `pstack skills dir:` line in your system prompt) before doing any work.",
+		);
+	});
+
 	it("is idempotent on already-ported text", () => {
 		const once = applyBodyTransforms("Spawn all N workers in one message with `agent: \"worker\", `environment: \"cloud\"`, `run_in_background: true`, and the configured model. Use `environment: \"local\"` only when the worker needs access to something on the user's computer.");
 		assert.equal(applyBodyTransforms(once), once);

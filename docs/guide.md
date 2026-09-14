@@ -41,6 +41,8 @@ A child that must stay read-only is told so in its brief. There is no `readonly`
 
 `agents/poteto-agent.md` and `agents/comment-sicko.md` are prompt bodies. A skill that says "spawn a `comment-sicko` child" means: read that file, paste its body above the scope, and `rlm.spawn` the result. The `no-comments` skill does exactly that.
 
+A `poteto-agent` child reads `skills/poteto-mode/SKILL.md` first. Upstream, Cursor resolves that skill by name inside the child. Here `poteto-mode` is hidden (`disable-model-invocation: true`), so it is not in the child's `<available_skills>` list. The extension injects a `pstack skills dir: <path>` line into every session's system prompt, children included and whether or not the mode is on, and the brief tells the child to read `<path>/poteto-mode/SKILL.md`.
+
 ## Run work while you sleep
 
 ```text
