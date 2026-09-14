@@ -25,6 +25,7 @@ import {
 	parseLegacyMarkdown,
 	readEnabledModels,
 	saveConfig,
+	thinkingForBudget,
 } from "./config.ts";
 
 const MAX_CONFIG_BYTES = 100_000;
@@ -45,6 +46,11 @@ describe("defaultConfig", () => {
 
 	it("enables skills by default", () => {
 		assert.equal(defaultConfig().skillsEnabled, true);
+	});
+
+	it("inherits the parent thinking level by default", () => {
+		assert.equal(defaultConfig().budget, "inherit");
+		assert.equal(thinkingForBudget("inherit"), undefined);
 	});
 });
 
@@ -69,6 +75,16 @@ describe("parseConfig", () => {
 			roles: { "bug-fix": "anthropic/claude-opus-4-6" },
 		});
 		assert.deepEqual(wrongVersion, defaultConfig());
+	});
+
+	it("keeps a known budget and drops an unknown one", () => {
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: "large" }).budget, "large");
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: "huge" }).budget, "inherit");
+		assert.equal(parseConfig({ version: 1, roles: {}, budget: 3 }).budget, "inherit");
+		assert.equal(thinkingForBudget("unlimited"), "max");
+		assert.equal(thinkingForBudget("large"), "xhigh");
+		assert.equal(thinkingForBudget("medium"), "high");
+		assert.equal(thinkingForBudget("small"), "medium");
 	});
 
 	it("keeps skillsEnabled false from stored JSON", () => {

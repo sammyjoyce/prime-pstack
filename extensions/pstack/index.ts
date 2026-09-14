@@ -3,8 +3,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
+	BUDGETS,
 	LIST_ROLES,
 	ROLE_NAMES,
+	type BudgetLabel,
 	type PstackConfig,
 	type RoleName,
 	type RoleValue,
@@ -25,7 +27,7 @@ const POTETO_SKILL = "/skill:poteto-mode";
 const POTETO_PROMPT =
 	"New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.";
 const ROLE_TABLE_HEADER =
-	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model):";
+	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model and thinking level):";
 
 export function systemPromptInjection(config: PstackConfig, potetoMode: boolean): string {
 	const parts: string[] = [];
@@ -199,6 +201,10 @@ export default function pstackExtension(pi: ExtensionAPI): void {
 				return;
 			}
 
+			const budget = await pickBudget(ctx, config.budget);
+			if (budget === undefined) return;
+			config.budget = budget;
+
 			const choices = modelChoices(ctx);
 			for (const role of ROLE_NAMES) {
 				const next = LIST_ROLES.has(role)
@@ -251,6 +257,21 @@ export default function pstackExtension(pi: ExtensionAPI): void {
 			);
 		},
 	});
+}
+
+async function pickBudget(
+	ctx: ExtensionCommandContext,
+	current: BudgetLabel,
+): Promise<BudgetLabel | undefined> {
+	const options = ["inherit - parent thinking level", ...BUDGETS.map((b) => b.choice)];
+	const currentChoice = current === "inherit" ? options[0] : BUDGETS.find((b) => b.label === current)?.choice;
+	const choice = await ctx.ui.select(
+		"Reasoning budget for subagents",
+		options.map((option) => (option === currentChoice ? `${option} (current)` : option)),
+	);
+	if (!choice) return undefined;
+	const clean = stripCurrentMark(choice);
+	return BUDGETS.find((b) => b.choice === clean)?.label ?? "inherit";
 }
 
 async function pickScalarRole(

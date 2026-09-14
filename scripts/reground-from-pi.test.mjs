@@ -45,7 +45,9 @@ describe("plan / apply / assertNoSeams", () => {
 			writeFileSync(join(from, "skills", "demo", "SKILL.md"), "---\nname: demo\ndescription: d\n---\nSee `~/.pi/agent/sessions/`.\n");
 			writeFileSync(join(from, "skills", "demo", "tool.ts"), "const x = '~/.pi/agent/sessions/';\n");
 			const actions = plan({ from, to });
-			assert.deepEqual(actions.map((a) => [a.kind, a.rel]).sort(), [
+			const overrides = actions.filter((a) => a.kind === "override");
+			assert.ok(overrides.some((a) => a.rel === "skills/setup-pstack/SKILL.md"), "setup-pstack override present");
+			assert.deepEqual(actions.filter((a) => a.kind !== "override").map((a) => [a.kind, a.rel]).sort(), [
 				["adapt", "skills/demo/SKILL.md"],
 				["copy", "skills/demo/tool.ts"],
 			]);

@@ -32,10 +32,35 @@ export const ROLE_NAMES = [
 
 export type RoleName = (typeof ROLE_NAMES)[number];
 export type RoleValue = string | string[];
+
+/**
+ * Reasoning budget. The Cursor plugin bakes effort into model slugs
+ * (`...-thinking-max`); Prime Agent passes it separately as `thinking=` on
+ * `rlm.spawn`, so the budget is one label mapped to one thinking level.
+ * `inherit` injects nothing and children inherit the parent level.
+ */
+export const BUDGETS = [
+	{ label: "unlimited", thinking: "max", choice: "unlimited - keep max" },
+	{ label: "large", thinking: "xhigh", choice: "large - xhigh reasoning" },
+	{ label: "medium", thinking: "high", choice: "medium - high reasoning" },
+	{ label: "small", thinking: "medium", choice: "small - medium reasoning" },
+] as const;
+export type BudgetLabel = (typeof BUDGETS)[number]["label"] | "inherit";
+const BUDGET_LABELS: ReadonlySet<string> = new Set(BUDGETS.map((b) => b.label));
+
 export interface PstackConfig {
 	version: 1;
 	roles: Record<string, RoleValue>;
 	skillsEnabled: boolean;
+	budget: BudgetLabel;
+}
+
+export function thinkingForBudget(budget: BudgetLabel): string | undefined {
+	return BUDGETS.find((b) => b.label === budget)?.thinking;
+}
+
+export function parseBudget(value: unknown): BudgetLabel {
+	return typeof value === "string" && BUDGET_LABELS.has(value) ? (value as BudgetLabel) : "inherit";
 }
 
 export const LIST_ROLES: ReadonlySet<RoleName> = new Set([
@@ -88,7 +113,7 @@ export function defaultConfig(): PstackConfig {
 	for (const role of ROLE_NAMES) {
 		roles[role] = "inherit-parent";
 	}
-	return { version: 1, roles, skillsEnabled: true };
+	return { version: 1, roles, skillsEnabled: true, budget: "inherit" };
 }
 
 export function isSafeModelSelector(value: unknown): value is string {
@@ -147,6 +172,7 @@ export function parseConfig(raw: unknown): PstackConfig {
 			storedSkillsEnabled === true || storedSkillsEnabled === false
 				? storedSkillsEnabled
 				: fallback.skillsEnabled,
+		budget: parseBudget((raw as { budget?: unknown }).budget),
 	};
 }
 
@@ -166,7 +192,11 @@ export function loadConfig(path: string = configPath()): PstackConfig {
 
 export function saveConfig(config: PstackConfig, path: string = configPath()): boolean {
 	const clean = parseConfig(config);
-	const body = `${JSON.stringify({ version: 1, roles: clean.roles, skillsEnabled: clean.skillsEnabled }, null, 2)}\n`;
+	const body = `${JSON.stringify(
+		{ version: 1, roles: clean.roles, skillsEnabled: clean.skillsEnabled, budget: clean.budget },
+		null,
+		2,
+	)}\n`;
 	const dir = dirname(path);
 	const tmp = join(dir, `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
 	try {
@@ -240,6 +270,12 @@ export function modelsForRole(config: PstackConfig, role: string): string[] {
 
 export function formatRoleTable(config: PstackConfig): string {
 	const lines: string[] = [];
+	const thinking = thinkingForBudget(config.budget);
+	if (thinking) {
+		lines.push(
+			`thinking budget: ${config.budget} (pass thinking="${thinking}" to rlm.spawn; omit it for a child model whose ceiling is lower)`,
+		);
+	}
 	for (const role of ROLE_NAMES) {
 		const models = modelsForRole(config, role);
 		if (models.length === 0) continue;

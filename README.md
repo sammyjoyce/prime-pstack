@@ -22,18 +22,18 @@ No other package is required. Subagents are native `rlm.spawn` children, so `pi-
 
 ## Get started
 
-1. Run `/setup-pstack` once to pick which models each role uses (optional; every role inherits the parent session model otherwise). The picker lists your `enabledModels` (the same set `/scoped-models` shows) when configured, otherwise every available model.
+1. Run `/setup-pstack` once to pick a reasoning budget and which models each role uses (optional; every role inherits the parent session model and thinking level otherwise). The picker lists your `enabledModels` (the same set `/scoped-models` shows) when configured, otherwise every available model.
 2. Use `/poteto-mode` for sticky Poteto Mode. It stays on until `/poteto-mode off`. `/skill:poteto-mode` also enables it.
 3. Run `/pstack off` to hide even the four Discoverable skills (`how`, `why`, `unslop`, `typescript-best-practices`) from the Skill catalog.
    Off persists in `~/.prime/agent/pstack/models.json`.
    `/skill:<name>` keeps working.
    `/pstack on` restores those four, not all 47.
 
-That is it. The other skills are Hidden; the mode skill uses them as needed.
+That is it. The other skills are Hidden; the mode skill uses them as needed. New here? [docs/guide.md](docs/guide.md) walks through setup, a first task, fan-outs, and overnight runs on Prime Agent.
 
 ## What you get
 
-- **47 skills**, including:
+- **47 skills** (tracking upstream pstack 0.15.2), including:
   - `poteto-mode`: the main entry point. Reads your request, matches one of 23 playbooks (bug fix, perf, feature, refactoring, investigation, shipping, orchestrate, autopilot, and more), copies its steps in verbatim, and routes to the other skills as steps fire.
   - Workflow skills: `how`, `why`, `recall`, `blast-radius`, `architect`, `arena`, `swarm`, `interrogate`, `reflect`, `teach`, `tdd`, `no-comments`, `unslop`, `deslop`, `bro`, `figure-it-out`, `show-me-your-work`, `create-verification-skill`, `maintain-verification-skill`, `automate-me`, `technical-writing`, `typescript-best-practices`.
   - 23 principle skills (`principle-laziness-protocol`, `principle-model-the-domain`, `principle-prove-it-works`, ...), one rule each, indexed inline by `poteto-mode`.
@@ -42,9 +42,11 @@ That is it. The other skills are Hidden; the mode skill uses them as needed.
   - `comment-sicko`: read-only comment reviewer that savors deletion. Usually invoked through the `no-comments` skill.
 - **Bundled scripts**: `skills/poteto-mode/scripts/` ships the `orch` coordination CLI (orchestrate playbook), the `watch-pr` watcher (babysit playbook), `check-plan.mjs` (multi-phase plan lint), and `worktree-audit.sh`. `orch` and `watch-pr` run under [bun](https://bun.sh).
 
-## Model roles
+## Model roles and budget
 
-Per-role model choices live in `~/.prime/agent/pstack/models.json` (or `$PRIME_AGENT_CODING_AGENT_DIR/pstack/models.json`). Run `/setup-pstack` to write it. The extension injects the role table into the system prompt only when a role has a real `provider/id` selector. Default inherit-all injects nothing. `inherit-parent` or `auto` runs on the parent session model (omit `model=` in `rlm.spawn`).
+Per-role model choices and the reasoning budget live in `~/.prime/agent/pstack/models.json` (or `$PRIME_AGENT_CODING_AGENT_DIR/pstack/models.json`). Run `/setup-pstack` to write it. The extension injects the role table into the system prompt only when a role has a real `provider/id` selector or the budget is not `inherit`. Default inherit-all injects nothing. `inherit-parent` or `auto` runs on the parent session model (omit `model=` in `rlm.spawn`).
+
+The budget maps to the `thinking=` argument of `rlm.spawn`: `unlimited` is `max`, `large` is `xhigh`, `medium` is `high`, `small` is `medium`. Upstream bakes effort into model slugs; Prime Agent keeps model and thinking level separate, so the budget is one line and does not rewrite selectors.
 
 ## How delegation maps onto Prime Agent
 

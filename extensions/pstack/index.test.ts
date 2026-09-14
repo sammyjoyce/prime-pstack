@@ -6,7 +6,7 @@ import { lastPotetoEnabled, modelSelectors, systemPromptInjection } from "./inde
 const POTETO_ONE_LINER =
 	"New task? Playbook match or rigor needed -> apply /poteto-mode. Casual turn or user opts out -> don't.";
 const TABLE_HEADER =
-	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model):";
+	"pstack role table (pass the selector as `model=` to `rlm.spawn`; a role with no line inherits the parent model and thinking level):";
 
 const SLUG_CONFIG = parseConfig({
 	version: 1,
@@ -31,6 +31,17 @@ describe("systemPromptInjection", () => {
 			systemPromptInjection(SLUG_CONFIG, true),
 			`${TABLE_HEADER}\nbug-fix: anthropic/claude-opus-4-6\n\n${POTETO_ONE_LINER}`,
 		);
+	});
+});
+
+describe("systemPromptInjection budget line", () => {
+	it("injects the thinking budget line only for a real budget", () => {
+		const large = parseConfig({ version: 1, roles: {}, budget: "large" });
+		assert.equal(
+			systemPromptInjection(large, false),
+			`${TABLE_HEADER}\nthinking budget: large (pass thinking="xhigh" to rlm.spawn; omit it for a child model whose ceiling is lower)`,
+		);
+		assert.equal(systemPromptInjection(parseConfig({ version: 1, roles: {}, budget: "inherit" }), false), "");
 	});
 });
 
