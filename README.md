@@ -43,7 +43,7 @@ New here? [docs/guide.md](docs/guide.md) walks through setup, a first task, fan-
   - Workflow skills: `how`, `why`, `recall`, `blast-radius`, `architect`, `arena`, `swarm`, `interrogate`, `reflect`, `teach`, `tdd`, `no-comments`, `unslop`, `deslop`, `bro`, `figure-it-out`, `show-me-your-work`, `create-verification-skill`, `maintain-verification-skill`, `automate-me`, `technical-writing`, `typescript-best-practices`.
   - 23 `principle-*` skills, one rule each, indexed inline by `poteto-mode`.
 - **2 subagent briefs** in [`agents/`](agents/): `poteto-agent` (runs poteto's style end to end) and `comment-sicko` (read-only comment reviewer, used by `no-comments`). A skill that says "spawn a comment-sicko child" means: paste the brief above the scope and `rlm.spawn` it.
-- **The extension**: `/poteto-mode`, `/setup-pstack`, `/pstack`, and per-turn injection of the resolved model roster.
+- **The extension**: `/poteto-mode`, `/setup-pstack`, `/pstack`, and per-turn injection of the resolved model roster plus a `pstack skills dir:` line, so a child spawned with the `poteto-agent` brief can find the hidden `poteto-mode` skill.
 - **Bundled tools** under `skills/poteto-mode/scripts/`: `orch` (coordination ledger), `watch-pr` (PR readiness), `check-plan.mjs` (multi-phase plan lint), `worktree-audit.sh`.
 
 ## Model roster

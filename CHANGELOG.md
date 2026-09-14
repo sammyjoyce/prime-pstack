@@ -1,5 +1,9 @@
 # prime-pstack
 
+## Unreleased
+
+- The `poteto-agent` brief told a child to find `poteto-mode` via its `<location>` in `<available_skills>`, but `poteto-mode` is hidden and never listed there. The extension now injects a `pstack skills dir: <path>` line on every turn, mode on or off, so a `poteto-agent` child can always resolve `poteto-mode` the way a Cursor child does by name. The brief body is back to upstream's sentence plus one clause pointing at that line; the `poteto-agent-find` seam produces the same clause.
+
 ## 0.3.0
 
 - Shipped model roster (was inherit-parent everywhere): `zai/glm-5.3` for code delegates, `anthropic/claude-opus-5` for judgment and prose, `openai/gpt-6-astra` for tooling review, and an opus 5 / astra / glm 5.3 / fable 5.1 panel for arena, architect, and interrogate. Budget defaults to `unlimited`.

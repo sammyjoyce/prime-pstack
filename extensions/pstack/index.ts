@@ -30,12 +30,23 @@ const POTETO_PROMPT =
 const ROLE_TABLE_HEADER =
 	"pstack role table (pass `model=` and `thinking=` to `rlm.spawn` exactly as written; a role with no line inherits the parent model and thinking level):";
 
+/**
+ * Hidden skills (`disable-model-invocation: true`, poteto-mode among them) never
+ * appear in `<available_skills>`, and `/pstack off` strips the rest. This line is
+ * the one place a session, parent or `rlm.spawn` child, can read the package's
+ * skill paths from. `agents/poteto-agent.md` points children at it.
+ */
+export function skillsDirLine(skillsDir: string): string {
+	return `pstack skills dir: ${skillsDir} (every pstack skill, hidden ones included, is <name>/SKILL.md under it)`;
+}
+
 export function systemPromptInjection(
 	config: PstackConfig,
 	potetoMode: boolean,
 	available: readonly ModelLevels[],
+	skillsDir: string,
 ): string {
-	const parts: string[] = [];
+	const parts: string[] = [skillsDirLine(skillsDir)];
 	const table = formatRoleTable(config, available);
 	if (table) parts.push(`${ROLE_TABLE_HEADER}\n${table}`);
 	if (potetoMode) parts.push(POTETO_PROMPT);
@@ -160,9 +171,9 @@ export default function pstackExtension(pi: ExtensionAPI): void {
 		const base = config.skillsEnabled
 			? event.systemPrompt
 			: stripSkillsByLocationPrefix(event.systemPrompt, SKILLS_DIR).prompt;
-		const extra = systemPromptInjection(config, potetoMode, availableModels(ctx));
+		const extra = systemPromptInjection(config, potetoMode, availableModels(ctx), SKILLS_DIR);
 		return {
-			systemPrompt: extra ? `${base}\n\n${extra}` : base,
+			systemPrompt: `${base}\n\n${extra}`,
 		};
 	});
 
