@@ -1,6 +1,6 @@
 {
 	"name": "prime-pstack",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "pstack for Prime Agent: rigorous agent workflows you can parallelize with confidence. poteto-mode playbooks, engineering principles, multi-model review panels, and rlm.spawn subagent briefs.",
 	"type": "module",
 	"license": "MIT",

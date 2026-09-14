@@ -1,6 +1,6 @@
 # prime-pstack
 
-## Unreleased
+## 0.3.1
 
 - The `poteto-agent` brief told a child to find `poteto-mode` via its `<location>` in `<available_skills>`, but `poteto-mode` is hidden and never listed there. The extension now injects a `pstack skills dir: <path>` line on every turn, mode on or off, so a `poteto-agent` child can always resolve `poteto-mode` the way a Cursor child does by name. The brief body is back to upstream's sentence plus one clause pointing at that line; the `poteto-agent-find` seam produces the same clause.
 
